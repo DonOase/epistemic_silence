@@ -1,0 +1,70 @@
+import pdfplumber
+import os
+import re
+import nltk
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+
+nltk.download('punkt')
+nltk.download('stopwords')
+nltk.download('punkt_tab')
+
+# --- CONFIGURARE ---
+CORPUS_A_DIR = "corpus_a"
+CORPUS_B_DIR = "corpus_b"
+OUTPUT_DIR = "output"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+def extract_text_from_pdf(pdf_path):
+    """Extrage textul brut dintr-un PDF."""
+    text = ""
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            page_text = page.extract_text()
+            if page_text:
+                text += page_text + "\n"
+    return text
+
+def clean_text(text):
+    """Curăță și tokenizează textul."""
+    # lowercase
+    text = text.lower()
+    # elimină caractere speciale și cifre
+    text = re.sub(r'[^a-z\s]', '', text)
+    # tokenizare
+    tokens = word_tokenize(text)
+    # elimină stopwords
+    stop_words = set(stopwords.words('english'))
+    tokens = [t for t in tokens if t not in stop_words and len(t) > 2]
+    return tokens
+
+def process_corpus(directory, corpus_name):
+    """Procesează toate PDF-urile dintr-un director."""
+    all_tokens = []
+    pdf_files = [f for f in os.listdir(directory) if f.endswith('.pdf')]
+    
+    print(f"\nProcesez {corpus_name}: {len(pdf_files)} fișiere găsite")
+    
+    for pdf_file in pdf_files:
+        path = os.path.join(directory, pdf_file)
+        print(f"  → {pdf_file}")
+        raw_text = extract_text_from_pdf(path)
+        tokens = clean_text(raw_text)
+        all_tokens.extend(tokens)
+        print(f"     {len(tokens)} tokens extrași")
+    
+    # salvează tokens ca text
+    output_path = os.path.join(OUTPUT_DIR, f"{corpus_name}_tokens.txt")
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.write('\n'.join(all_tokens))
+    
+    print(f"  ✓ Salvat: {output_path} ({len(all_tokens)} tokens total)")
+    return all_tokens
+
+# --- RULARE ---
+tokens_a = process_corpus(CORPUS_A_DIR, "corpus_a")
+tokens_b = process_corpus(CORPUS_B_DIR, "corpus_b")
+
+print("\n✓ Extragere completă.")
+print(f"  Corpus A: {len(tokens_a)} tokens")
+print(f"  Corpus B: {len(tokens_b)} tokens")
